@@ -291,10 +291,11 @@
   /* ---- CUOTAS ---- */
   .cuotas-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 12px;
     margin: 6px 0;
   }
+  @media(max-width:520px) { .cuotas-grid { grid-template-columns: 1fr; } }
   .cuota-card {
     background: #FFFFFF;
     border: 2px solid #E0E0E0;
@@ -515,7 +516,7 @@
   <div class="hero-sub">Gran Ruta 2025</div>
   <div class="stats">
     <div class="stat">
-      <div class="stat-val">223</div>
+      <div class="stat-val">222</div>
       <div class="stat-label">km Ida &amp; Vuelta</div>
     </div>
     <div class="stat">
@@ -616,7 +617,7 @@
       </div>
       <div class="nequi-note">
         Nombre del titular: <strong style="color:var(--light)">515 TEAM</strong><br>
-        Cuota 1: $25.000 &nbsp;|&nbsp; Cuota 2: $25.000 &nbsp;|&nbsp; Total: $50.000 COP
+        Cuota 1: $25.000 &nbsp;|&nbsp; Cuota 2: $25.000 &nbsp;|&nbsp; Pago total: $50.000 COP
       </div>
     </div>
 
@@ -635,6 +636,13 @@
         <div class="cuota-num">2</div>
         <div class="cuota-label">Segunda cuota</div>
         <div class="cuota-monto">$25.000</div>
+      </label>
+      <label class="cuota-card" id="card-cuota3" onclick="selectCuota(3)">
+        <input type="radio" name="cuota" value="3">
+        <div class="cuota-check" id="check3"></div>
+        <div class="cuota-num">★</div>
+        <div class="cuota-label">Pago total</div>
+        <div class="cuota-monto">$50.000</div>
       </label>
     </div>
     <span class="err-msg" id="err-cuota" style="display:none">Selecciona qué pago vas a registrar</span>
@@ -701,7 +709,7 @@
 
 <script>
 // ---- CONFIG GOOGLE SHEETS ----
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5cyqhGpcdXEXfybYxHBo_jB_lvx3vGmwV71HJaHd4uXlNM17CNcT4aodEbIafT0KIhQ/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBTI3kY1Eoq8NVjW0r4wg_iUiWrGloDTXLVtnyO4mmSS4fXgOUsuTeI8WKNbiK6a9BwQ/exec';
 
 async function enviarASheets(payload) {
   const resp = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
@@ -823,8 +831,10 @@ function selectCuota(n) {
   cuotaSeleccionada = n;
   document.getElementById('card-cuota1').classList.toggle('selected', n===1);
   document.getElementById('card-cuota2').classList.toggle('selected', n===2);
+  document.getElementById('card-cuota3').classList.toggle('selected', n===3);
   document.getElementById('check1').textContent = n===1 ? '✓' : '';
   document.getElementById('check2').textContent = n===2 ? '✓' : '';
+  document.getElementById('check3').textContent = n===3 ? '✓' : '';
   document.getElementById('err-cuota').style.display='none';
 }
 
@@ -888,6 +898,7 @@ async function submitPago() {
   if (cuotaSeleccionada === 1 && d.pagos[cel].c1) { showToast('El primer pago ya fue registrado anteriormente', 'error'); return; }
   if (cuotaSeleccionada === 2 && d.pagos[cel].c2) { showToast('El segundo pago ya fue registrado anteriormente', 'error'); return; }
   if (cuotaSeleccionada === 2 && !d.pagos[cel].c1) { showToast('Debes registrar primero el primer pago', 'error'); return; }
+  if (cuotaSeleccionada === 3 && (d.pagos[cel].c1 || d.pagos[cel].c2)) { showToast('Ya tienes pagos registrados. Usa las cuotas individuales.', 'error'); return; }
 
   const archivo = archivoInput.files[0];
 
@@ -919,10 +930,12 @@ async function submitPago() {
     await enviarASheets(payload);
 
     if (cuotaSeleccionada === 1) d.pagos[cel].c1 = true;
-    else d.pagos[cel].c2 = true;
+    else if (cuotaSeleccionada === 2) d.pagos[cel].c2 = true;
+    else { d.pagos[cel].c1 = true; d.pagos[cel].c2 = true; }
     saveData(d);
 
-    showToast(`Cuota ${cuotaSeleccionada} y soporte registrados exitosamente ✓`);
+    const msgExito = cuotaSeleccionada === 3 ? 'Pago total registrado exitosamente ✓' : `Cuota ${cuotaSeleccionada} registrada exitosamente ✓`;
+    showToast(msgExito);
     cuotaSeleccionada = 0;
     selectCuota(0);
     document.getElementById('pago-cel').value='';
@@ -969,6 +982,10 @@ async function consultarEstado() {
       <div class="pago-row">
         <span>Segunda cuota — $25.000</span>
         <span class="badge ${pag.c2?'paid':'pending'}">${pag.c2?'✓ Registrado':'Pendiente'}</span>
+      </div>
+      <div class="pago-row">
+        <span>Total pagado</span>
+        <span class="badge ${total===2?'paid':'pending'}">$${total * 25}.000 / $50.000</span>
       </div>
     `;
     document.getElementById('result-pagos').innerHTML = pagosHtml;
